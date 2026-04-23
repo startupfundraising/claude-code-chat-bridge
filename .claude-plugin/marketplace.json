@@ -1,0 +1,20 @@
+{
+  "name": "chat-bridge",
+  "description": "A phone call between two Claude Code terminals. One asks, the other answers — no copy-paste.",
+  "owner": {
+    "name": "Alexander Jarvis"
+  },
+  "plugins": [
+    {
+      "name": "chat-bridge",
+      "description": "Phone call between two Claude Code terminals. Zero RAM at rest. Either-order setup. Deliberately minimal.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Alexander Jarvis"
+      },
+      "source": "./plugins/chat-bridge",
+      "category": "productivity",
+      "keywords": ["bridge", "chat", "multi-session", "terminal", "communication"]
+    }
+  ]
+}

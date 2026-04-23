@@ -1,0 +1,244 @@
+#!/usr/bin/env python3
+"""chat-bridge — phone call between two Claude Code terminals (CLI edition).
+
+One line, two parties. State in /tmp/chat-bridge/. Zero RAM at rest.
+
+Subcommands:
+  pick-up                    — answerer picks up the phone
+  dial                       — questioner dials (waits up to 30s for answerer)
+  send --as ROLE "message"   — send a message to the other side
+  receive --as ROLE          — block up to 50s for a message
+  hang-up --as ROLE          — end the call
+  status                     — show current state
+
+Roles: answerer | questioner
+
+All commands print JSON to stdout. Non-zero exit code on error.
+"""
+
+import argparse
+import json
+import os
+import shutil
+import sys
+import time
+from pathlib import Path
+
+STATE_DIR = Path(os.environ.get("CHAT_BRIDGE_DIR", "/tmp/chat-bridge"))
+STALE_SECONDS = int(os.environ.get("CHAT_BRIDGE_STALE_SECONDS", "300"))
+DIAL_WAIT_SECONDS = int(os.environ.get("CHAT_BRIDGE_DIAL_WAIT_SECONDS", "30"))
+RECEIVE_BLOCK_SECONDS = int(os.environ.get("CHAT_BRIDGE_RECEIVE_BLOCK_SECONDS", "50"))
+
+ROLES = ("answerer", "questioner")
+
+
+def active_file(role): return STATE_DIR / f"{role}.active"
+def inbox_dir(role): return STATE_DIR / f"to-{role}"
+def other_role(role): return "questioner" if role == "answerer" else "answerer"
+
+
+def ensure_state_dir():
+    STATE_DIR.mkdir(exist_ok=True)
+
+
+def touch(path: Path):
+    path.parent.mkdir(exist_ok=True)
+    path.touch()
+    os.utime(path, None)
+
+
+def is_fresh(role: str) -> bool:
+    af = active_file(role)
+    if not af.exists():
+        return False
+    return (time.time() - af.stat().st_mtime) < STALE_SECONDS
+
+
+def clean_role(role: str):
+    active_file(role).unlink(missing_ok=True)
+    ib = inbox_dir(role)
+    if ib.exists():
+        shutil.rmtree(ib)
+
+
+def clean_all():
+    ensure_state_dir()
+    for r in ROLES:
+        clean_role(r)
+
+
+def write_message(to_role: str, message: str):
+    ib = inbox_dir(to_role)
+    ib.mkdir(exist_ok=True)
+    existing = sorted(ib.glob("*.msg"))
+    n = (int(existing[-1].stem) + 1) if existing else 1
+    final = ib / f"{n:06d}.msg"
+    tmp = ib / f"{n:06d}.msg.tmp"
+    tmp.write_text(message)
+    tmp.rename(final)
+
+
+def pop_message(from_role: str) -> str | None:
+    ib = inbox_dir(from_role)
+    if not ib.exists():
+        return None
+    msgs = sorted(ib.glob("*.msg"))
+    if not msgs:
+        return None
+    text = msgs[0].read_text()
+    msgs[0].unlink()
+    return text
+
+
+def emit(payload: dict, exit_code: int = 0):
+    print(json.dumps(payload))
+    sys.exit(exit_code)
+
+
+# ── commands ──────────────────────────────────────────────────────────────────
+
+def cmd_pick_up(args):
+    ensure_state_dir()
+    if is_fresh("answerer"):
+        emit({
+            "status": "error",
+            "reason": "in_use",
+            "message": "Another terminal is already in answer mode. If it's stale, wait a few minutes or clear /tmp/chat-bridge.",
+        }, 1)
+    clean_all()
+    touch(active_file("answerer"))
+    inbox_dir("answerer").mkdir(exist_ok=True)
+    inbox_dir("questioner").mkdir(exist_ok=True)
+    emit({"status": "picked_up", "role": "answerer"})
+
+
+def cmd_dial(args):
+    ensure_state_dir()
+    deadline = time.time() + DIAL_WAIT_SECONDS
+    while time.time() < deadline:
+        if is_fresh("answerer"):
+            break
+        time.sleep(1)
+    else:
+        emit({
+            "status": "error",
+            "reason": "no_answerer",
+            "message": f"No terminal in answer mode after {DIAL_WAIT_SECONDS}s. Run /ans in the other terminal.",
+        }, 1)
+
+    if is_fresh("questioner"):
+        emit({
+            "status": "error",
+            "reason": "busy",
+            "message": "Another questioner is already connected.",
+        }, 1)
+
+    clean_role("questioner")
+    touch(active_file("questioner"))
+    inbox_dir("questioner").mkdir(exist_ok=True)
+    emit({"status": "connected", "role": "questioner"})
+
+
+def cmd_send(args):
+    role = args.as_role
+    if role not in ROLES:
+        emit({"status": "error", "reason": "bad_role", "message": f"--as must be one of: {', '.join(ROLES)}"}, 2)
+    if not active_file(role).exists():
+        emit({"status": "error", "reason": "not_on_call", "message": f"{role} is not on a call. Run pick-up or dial first."}, 1)
+    touch(active_file(role))
+    write_message(other_role(role), args.message)
+    emit({"status": "sent"})
+
+
+def cmd_receive(args):
+    role = args.as_role
+    if role not in ROLES:
+        emit({"status": "error", "reason": "bad_role", "message": f"--as must be one of: {', '.join(ROLES)}"}, 2)
+    if not active_file(role).exists():
+        emit({"status": "error", "reason": "not_on_call", "message": f"{role} is not on a call. Run pick-up or dial first."}, 1)
+
+    other = other_role(role)
+    for _ in range(RECEIVE_BLOCK_SECONDS):
+        touch(active_file(role))
+        msg = pop_message(role)
+        if msg is not None:
+            if msg == "__END__":
+                clean_role(role)
+                emit({"status": "hung_up", "reason": "end_signal"})
+            emit({"status": "message", "message": msg})
+
+        # Other side gone (their .active is stale)
+        if not is_fresh(other):
+            clean_role(role)
+            emit({"status": "hung_up", "reason": "other_side_gone"})
+
+        time.sleep(1)
+
+    emit({"status": "waiting"})
+
+
+def cmd_hang_up(args):
+    role = args.as_role
+    if role not in ROLES:
+        emit({"status": "error", "reason": "bad_role", "message": f"--as must be one of: {', '.join(ROLES)}"}, 2)
+    # Send __END__ to the other side as a courtesy, if they're still there
+    if is_fresh(other_role(role)):
+        try:
+            write_message(other_role(role), "__END__")
+        except Exception:
+            pass
+    clean_role(role)
+    emit({"status": "hung_up"})
+
+
+def cmd_status(args):
+    ensure_state_dir()
+    now = time.time()
+    out = {"state_dir": str(STATE_DIR), "roles": {}}
+    for r in ROLES:
+        af = active_file(r)
+        if af.exists():
+            age = now - af.stat().st_mtime
+            ib = inbox_dir(r)
+            inbox_count = len(list(ib.glob("*.msg"))) if ib.exists() else 0
+            out["roles"][r] = {
+                "active": True,
+                "seconds_since_last_activity": round(age, 1),
+                "fresh": age < STALE_SECONDS,
+                "inbox_count": inbox_count,
+            }
+        else:
+            out["roles"][r] = {"active": False}
+    emit(out)
+
+
+# ── argparse ──────────────────────────────────────────────────────────────────
+
+def main():
+    p = argparse.ArgumentParser(prog="chat-bridge", description=__doc__.split("\n\n")[0])
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    sub.add_parser("pick-up", help="answerer picks up the phone").set_defaults(func=cmd_pick_up)
+    sub.add_parser("dial", help="questioner dials (waits up to 30s for answerer)").set_defaults(func=cmd_dial)
+
+    p_send = sub.add_parser("send", help="send a message to the other side")
+    p_send.add_argument("--as", dest="as_role", required=True, choices=ROLES, help="your role")
+    p_send.add_argument("message", help="the message text")
+    p_send.set_defaults(func=cmd_send)
+
+    p_recv = sub.add_parser("receive", help="block up to 50s for a message")
+    p_recv.add_argument("--as", dest="as_role", required=True, choices=ROLES, help="your role")
+    p_recv.set_defaults(func=cmd_receive)
+
+    p_hang = sub.add_parser("hang-up", help="end the call")
+    p_hang.add_argument("--as", dest="as_role", required=True, choices=ROLES, help="your role")
+    p_hang.set_defaults(func=cmd_hang_up)
+
+    sub.add_parser("status", help="show current state").set_defaults(func=cmd_status)
+
+    args = p.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()

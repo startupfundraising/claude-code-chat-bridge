@@ -1,0 +1,9 @@
+{
+  "name": "chat-bridge",
+  "version": "0.1.0",
+  "description": "Phone call between two Claude Code terminals. Zero RAM at rest.",
+  "author": {
+    "name": "Alexander Jarvis"
+  },
+  "keywords": ["bridge", "chat", "multi-session", "terminal", "communication"]
+}
