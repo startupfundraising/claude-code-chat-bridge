@@ -1,4 +1,4 @@
-# chat-bridge
+# Get Claude Code sessions to talk to eachother
 
 **A phone call between two Claude Code terminals.** One asks, the other answers from its context. No copy-paste. No IDs to remember. No files to clean up.
 
