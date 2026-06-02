@@ -88,6 +88,19 @@ Ready to apply the same setup here — want me to proceed?
 
 **Skip it if** you only run one session at a time and never resume old ones. No downside to having it installed — it just won't do anything for you.
 
+## Compared to other session-bridge tools
+
+This isn't the only tool that lets Claude Code sessions talk. The others are heavier and do more — pick whichever fits your case. This one stays small on purpose.
+
+| Tool | Best for |
+|---|---|
+| [claude-code-session-bridge](https://github.com/PatilShreyas/claude-code-session-bridge) | Multi-peer with persistent UUIDs that can reconnect across restarts |
+| [cli-agents-bridge](https://github.com/MyAIPlugins/cli-agents-bridge) | Orchestrator ↔ executor patterns across Claude Code / Codex / Aider / Cline (Go binary) |
+| [claudelink](https://github.com/RBJGlobal/claudelink) | A coordinated swarm of agents with a live dashboard and auto-nudge |
+| **chat-bridge (this repo)** | Two sessions, one quick handoff, zero setup, zero RAM, zero cleanup |
+
+If you need 3+ sessions, persistent identity, or a dashboard, use one of the above. If you just want one session to ask another a question and get on with your day, this is the lighter option.
+
 ## Why I made this
 
 I run a lot of Claude Code sessions. I also save old ones, because pulling context from a session I've already done is way easier than re-deriving it from scratch.
