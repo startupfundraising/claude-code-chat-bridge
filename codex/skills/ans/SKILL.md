@@ -1,19 +1,17 @@
 ---
-name: ans
-description: |
-  Enter answer mode — wait for another terminal to ask questions, answer from your context.
-  Use /ans when another terminal (Claude Code or Codex) needs to ask this one questions about its context.
+name: "ans"
+description: "Enter answer mode — wait for another terminal to ask questions, answer from your context. Use $ans when another terminal (Claude Code or Codex) needs to ask this one questions about its context."
 ---
 
 # Answer Mode
 
-Another terminal (Claude Code or Codex) is going to ask you questions and you will answer them from YOUR conversation context. All communication happens via the `chat-bridge` CLI, invoked as `${CLAUDE_PLUGIN_ROOT}/bin/chat-bridge` below.
+Another terminal (Claude Code or Codex) is going to ask you questions and you will answer them from YOUR conversation context. All communication happens via the `chat-bridge` CLI, invoked as `chat-bridge` below.
 
 ## Setup
 
 1. Pick up the phone:
    ```bash
-   "${CLAUDE_PLUGIN_ROOT}/bin/chat-bridge" pick-up
+   chat-bridge pick-up
    ```
    - If it returns `{"status": "picked_up"}`, proceed.
    - If it returns `{"status": "error", "reason": "in_use"}`, tell the user: *"Another terminal is already in answer mode. Close that one first."* Stop.
@@ -24,12 +22,12 @@ Another terminal (Claude Code or Codex) is going to ask you questions and you wi
 
 3. Wait for a question:
    ```bash
-   "${CLAUDE_PLUGIN_ROOT}/bin/chat-bridge" receive --as answerer
+   chat-bridge receive --as answerer
    ```
    Handle the result based on `status`:
    - `"message"` — read the question. Answer it thoroughly using your own conversation history and knowledge of this project. Then send your answer:
      ```bash
-     "${CLAUDE_PLUGIN_ROOT}/bin/chat-bridge" send --as answerer "YOUR ANSWER HERE"
+     chat-bridge send --as answerer "YOUR ANSWER HERE"
      ```
      Then go back to step 3 (receive again).
    - `"waiting"` — nothing arrived in 50 seconds. Call `receive` again immediately. Say nothing to the user.

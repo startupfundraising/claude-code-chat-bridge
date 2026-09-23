@@ -259,6 +259,18 @@ code, out = run("receive", "--as", "answerer")
 check("status hung_up", out.get("status") == "hung_up", str(out))
 check("reason other_side_gone", out.get("reason") == "other_side_gone", str(out))
 
+# 20. Codex skill copies match the plugin skills (bodies differ only in how the CLI is invoked)
+print("\n20. codex/skills in step with plugins/chat-bridge/skills")
+_root = Path(__file__).resolve().parents[3]
+def _body(path):
+    text = path.read_text()
+    body = text.split("---", 2)[2]  # drop frontmatter
+    return body.replace('"${CLAUDE_PLUGIN_ROOT}/bin/chat-bridge"', "chat-bridge").replace("`${CLAUDE_PLUGIN_ROOT}/bin/chat-bridge`", "`chat-bridge`")
+for _name in ("qu", "ans"):
+    _plugin = _body(_root / "plugins" / "chat-bridge" / "skills" / _name / "SKILL.md")
+    _codex = _body(_root / "codex" / "skills" / _name / "SKILL.md")
+    check(f"{_name}: codex body matches plugin body", _plugin.strip() == _codex.strip())
+
 # ── summary ───────────────────────────────────────────────────────────────────
 
 print(f"\n═══ {passed} passed  {failed} failed ═══\n")

@@ -1,15 +1,13 @@
 ---
-name: qu
-description: |
-  Enter question mode — connect to a terminal in answer mode and ask it questions until you have what you need.
-  Use /qu to ask another terminal (Claude Code or Codex) questions about its context.
+name: "qu"
+description: "Enter question mode — connect to a terminal in answer mode and ask it questions until you have what you need. Use $qu to ask another terminal (Claude Code or Codex) questions about its context."
 ---
 
 # Question Mode
 
 You are about to talk to an AI coding session in another terminal (Claude Code or Codex) that has context you are missing. Your job is to extract the information the user needs from that other terminal, then hang up and report back.
 
-All communication happens via the `chat-bridge` CLI, invoked as `${CLAUDE_PLUGIN_ROOT}/bin/chat-bridge` below. All commands print JSON to stdout.
+All communication happens via the `chat-bridge` CLI, invoked as `chat-bridge` below. All commands print JSON to stdout.
 
 ## Setup
 
@@ -17,7 +15,7 @@ All communication happens via the `chat-bridge` CLI, invoked as `${CLAUDE_PLUGIN
 
 2. Dial the other terminal:
    ```bash
-   "${CLAUDE_PLUGIN_ROOT}/bin/chat-bridge" dial
+   chat-bridge dial
    ```
    - This waits up to 30 seconds for answer mode to be running in the other terminal. Either order works — the user can start question mode first or answer mode first.
    - If it returns `{"status": "connected"}`, proceed.
@@ -30,12 +28,12 @@ All communication happens via the `chat-bridge` CLI, invoked as `${CLAUDE_PLUGIN
 
 4. Send your question:
    ```bash
-   "${CLAUDE_PLUGIN_ROOT}/bin/chat-bridge" send --as questioner "YOUR QUESTION HERE"
+   chat-bridge send --as questioner "YOUR QUESTION HERE"
    ```
 
 5. Wait for the answer:
    ```bash
-   "${CLAUDE_PLUGIN_ROOT}/bin/chat-bridge" receive --as questioner
+   chat-bridge receive --as questioner
    ```
    Handle the result based on `status`:
    - `"message"` — show the answer to the user (briefly), then decide: do you have what you need, or do you need a follow-up? If follow-up, go to step 4. If done, go to step 6.
@@ -44,7 +42,7 @@ All communication happens via the `chat-bridge` CLI, invoked as `${CLAUDE_PLUGIN
 
 6. When you have the information the user needs (or the user says they're done):
    ```bash
-   "${CLAUDE_PLUGIN_ROOT}/bin/chat-bridge" hang-up --as questioner
+   chat-bridge hang-up --as questioner
    ```
    Then summarize what you learned for the user and proceed with whatever task they originally had.
 

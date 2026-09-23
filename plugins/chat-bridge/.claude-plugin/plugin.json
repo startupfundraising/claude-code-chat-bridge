@@ -1,7 +1,7 @@
 {
   "name": "chat-bridge",
-  "version": "0.1.0",
-  "description": "Phone call between two Claude Code terminals. Zero RAM at rest.",
+  "version": "0.2.0",
+  "description": "Phone call between two terminals running Claude Code or Codex. Zero RAM at rest.",
   "author": {
     "name": "Alexander Jarvis"
   },

@@ -1,29 +1,49 @@
-# Get Claude Code sessions to talk to eachother
+# Get Claude Code and Codex sessions to talk to each other
 
-**A phone call between two Claude Code terminals.** One asks, the other answers from its context. No copy-paste. No IDs to remember. No files to clean up.
+**A phone call between two AI coding terminals — Claude Code, Codex, or one of each.** One asks, the other answers from its context. No copy-paste. No IDs to remember. No files to clean up.
 
 ```
-Terminal A: /ans        ← picks up the phone
-Terminal B: /qu         ← describes a problem, Claude does the rest
+Terminal A: /ans        ← picks up the phone            ($ans in Codex)
+Terminal B: /qu         ← describes a problem, the agent does the rest   ($qu in Codex)
 ```
 
 ## TL;DR
 
-Super simple way to let Claude Code "phone a friend" between sessions and sort out your issues. You need a session with a problem and a session with the answers. You write one prompt in each terminal and let them do their thing. No IDs to remember, no files to clean up.
+Super simple way to let Claude Code or Codex "phone a friend" between sessions and sort out your issues. You need a session with a problem and a session with the answers. You write one prompt in each terminal and let them do their thing. No IDs to remember, no files to clean up.
 
 You need:
-- Claude Code
-- Two terminals, two sessions
-- `/qu` and `/ans` memorised
+- Claude Code and/or Codex CLI
+- Two terminals, two sessions — any mix of the two tools
+- `/qu` and `/ans` memorised (`$qu` and `$ans` in Codex)
 
 ## Install
+
+### Claude Code
 
 ```bash
 claude plugin marketplace add startupfundraising/claude-code-chat-bridge
 claude plugin install chat-bridge
 ```
 
-Requirements: Python 3.9+ (stdlib only — no extra packages), POSIX filesystem (Linux, macOS, WSL).
+### Codex CLI
+
+Codex loads skills from `~/.codex/skills/`, and the skills call the `chat-bridge` command, so it needs to be on your PATH. Two steps:
+
+```bash
+# 1. the CLI (one file, Python stdlib only)
+mkdir -p ~/.local/bin && curl -fsSL https://raw.githubusercontent.com/startupfundraising/claude-code-chat-bridge/main/plugins/chat-bridge/bin/chat-bridge -o ~/.local/bin/chat-bridge && chmod +x ~/.local/bin/chat-bridge
+
+# 2. the two skills
+git clone --depth 1 https://github.com/startupfundraising/claude-code-chat-bridge /tmp/chat-bridge-src
+mkdir -p ~/.codex/skills && cp -r /tmp/chat-bridge-src/codex/skills/qu /tmp/chat-bridge-src/codex/skills/ans ~/.codex/skills/
+rm -rf /tmp/chat-bridge-src
+```
+
+(Or ask Codex to install them with its built-in skill-installer from repo `startupfundraising/claude-code-chat-bridge`, paths `codex/skills/qu` and `codex/skills/ans` — then do step 1.)
+
+In Codex the skills are invoked as `$ans` and `$qu`, because Codex reserves `/` for its own commands. Everything else is identical, and the two tools can be on the same call in any combination.
+
+Requirements: Python 3.9+ (stdlib only — no extra packages), POSIX filesystem (Linux, macOS, WSL). Codex support tested on Codex CLI 0.156.
 
 ## How to use it (pragmatically)
 
@@ -33,8 +53,8 @@ Concrete example — you're setting up Redis on a new WordPress site, and you kn
 
 1. **New-setup terminal:** you're working with Claude Code. You hit the Redis step. You tell Claude *"I set this up before in another session, let me open that one so we can ask it."*
 2. **Old-setup terminal:** resume the old Claude Code session that has the Redis setup history. Confirm it's the right one — ask Claude to summarise what it did with Redis.
-3. **Old-setup terminal, type:** `/ans`. It picks up and waits.
-4. **New-setup terminal, type:** `/qu`. It dials. Either order works — whichever is second waits up to 30 seconds for the first.
+3. **Old-setup terminal, type:** `/ans` (`$ans` in Codex). It picks up and waits.
+4. **New-setup terminal, type:** `/qu` (`$qu` in Codex). It dials. Either order works — whichever is second waits up to 30 seconds for the first.
 5. **Leave them alone. Touch some grass.** The `/qu` session reads the recent conversation, figures out what to ask, chats with the `/ans` session, asks follow-ups if needed, hangs up, and reports back.
 6. **You come back to a summary.** Usually something like *"The other session confirmed the approach — here's what to do next."* Approve the plan and move on.
 
@@ -84,13 +104,13 @@ Ready to apply the same setup here — want me to proceed?
 - Both sessions are fresh and empty. `/qu` has nothing to ask about, `/ans` has nothing to say.
 - The `/ans` session isn't actually about the right topic. It can only share what it's actually done.
 
-**Use it if** you run multiple Claude Code sessions, restore old ones, or want to pull context from a past session without copy-pasting. Basically anyone who uses Claude Code seriously.
+**Use it if** you run multiple Claude Code or Codex sessions, restore old ones, or want to pull context from a past session without copy-pasting. Basically anyone who uses these tools seriously.
 
 **Skip it if** you only run one session at a time and never resume old ones. No downside to having it installed — it just won't do anything for you.
 
 ## Compared to other session-bridge tools
 
-This isn't the only tool that lets Claude Code sessions talk. The others are heavier and do more — pick whichever fits your case. This one stays small on purpose.
+This isn't the only tool that lets coding-agent sessions talk. The others are heavier and do more — pick whichever fits your case. This one stays small on purpose.
 
 | Tool | Best for |
 |---|---|
@@ -135,7 +155,7 @@ All optional — defaults are sensible.
 
 ## Troubleshooting
 
-**"No terminal is in answer mode after 30s"** — Run `/ans` in the other terminal and retry `/qu`.
+**"No terminal is in answer mode after 30s"** — Run `/ans` (`$ans` in Codex) in the other terminal and retry `/qu` (`$qu`).
 
 **"Phone line already in use"** — Another pair is mid-call on this machine. Wait, or clear state:
 ```bash
@@ -150,9 +170,9 @@ rm -rf /tmp/chat-bridge
 python3 plugins/chat-bridge/tests/test_cli.py
 ```
 
-35 tests, no live terminals required.
+42 tests, no live terminals required.
 
-**Not tested with** Codex, OpenRouter models via Claudish, or other non-Claude models running inside Claude Code. The CLI itself is model-agnostic — it's just a shell tool — so it should work with any model that can follow a skill and shell out. Let me know if you try it.
+**Tested with** Claude Code and Codex CLI, in every combination of who asks and who answers. **Not tested with** OpenRouter models via Claudish or other non-Claude models running inside Claude Code. The CLI itself is model-agnostic — it's just a shell tool — so it should work with any model that can follow a skill and shell out. Let me know if you try it.
 
 ## CLI reference
 
@@ -177,6 +197,11 @@ Intentionally minimal. Things that could be added (probably won't be soon):
 - CI via GitHub Actions.
 
 The whole point is simplicity. Feature requests welcome if they fit the phone-call metaphor.
+
+## Changelog
+
+- **0.2.0** — Codex CLI support: skills in `codex/skills/`, invoked as `$qu` / `$ans`; either tool can be at either end of a call. Fixed a bug where `/ans` first then `/qu` dropped the call within a second of pick-up (only `/qu`-first worked before). Skills reworded to be agent-neutral.
+- **0.1.0** — Initial release.
 
 ## License
 

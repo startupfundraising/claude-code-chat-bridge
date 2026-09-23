@@ -1,14 +1,14 @@
 {
   "name": "chat-bridge",
-  "description": "A phone call between two Claude Code terminals. One asks, the other answers — no copy-paste.",
+  "description": "A phone call between two terminals running Claude Code or Codex. One asks, the other answers — no copy-paste.",
   "owner": {
     "name": "Alexander Jarvis"
   },
   "plugins": [
     {
       "name": "chat-bridge",
-      "description": "Phone call between two Claude Code terminals. Zero RAM at rest. Either-order setup. Deliberately minimal.",
-      "version": "0.1.0",
+      "description": "Phone call between two terminals running Claude Code or Codex. Zero RAM at rest. Either-order setup. Deliberately minimal.",
+      "version": "0.2.0",
       "author": {
         "name": "Alexander Jarvis"
       },
