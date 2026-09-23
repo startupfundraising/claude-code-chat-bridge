@@ -35,6 +35,7 @@ ROLES = ("answerer", "questioner")
 def active_file(role): return STATE_DIR / f"{role}.active"
 def inbox_dir(role): return STATE_DIR / f"to-{role}"
 def other_role(role): return "questioner" if role == "answerer" else "answerer"
+def dialed_marker(): return STATE_DIR / "questioner.dialed"
 
 
 def ensure_state_dir():
@@ -65,6 +66,7 @@ def clean_all():
     ensure_state_dir()
     for r in ROLES:
         clean_role(r)
+    dialed_marker().unlink(missing_ok=True)
 
 
 def write_message(to_role: str, message: str):
@@ -135,6 +137,7 @@ def cmd_dial(args):
 
     clean_role("questioner")
     touch(active_file("questioner"))
+    touch(dialed_marker())
     inbox_dir("questioner").mkdir(exist_ok=True)
     emit({"status": "connected", "role": "questioner"})
 
@@ -167,8 +170,9 @@ def cmd_receive(args):
                 emit({"status": "hung_up", "reason": "end_signal"})
             emit({"status": "message", "message": msg})
 
-        # Other side gone (their .active is stale)
-        if not is_fresh(other):
+        # Other side gone (their .active is stale or was removed). An answerer
+        # nobody has dialed yet is still waiting for a call, not abandoned.
+        if not is_fresh(other) and (role == "questioner" or dialed_marker().exists()):
             clean_role(role)
             emit({"status": "hung_up", "reason": "other_side_gone"})
 
@@ -185,6 +189,8 @@ def cmd_hang_up(args):
     if is_fresh(other_role(role)):
         try:
             write_message(other_role(role), "__END__")
+            # They will end on __END__, so the dialed marker is no longer needed
+            dialed_marker().unlink(missing_ok=True)
         except Exception:
             pass
     clean_role(role)

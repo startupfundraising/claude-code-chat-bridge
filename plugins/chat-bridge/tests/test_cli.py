@@ -235,6 +235,30 @@ print("\n17. missing required --as")
 code, out = run("send", "hello")
 check("exit non-zero", code != 0)
 
+# 18. either-order: pick-up first, answerer waits, dial arrives later
+reset()
+print("\n18. either-order — pick-up waits, dial arrives")
+run("pick-up")
+code, out = run("receive", "--as", "answerer")  # no questioner yet: must wait, not hang up
+check("answerer keeps waiting (not hung_up)", out.get("status") == "waiting", str(out))
+code, out = run("dial")
+check("dial connects to the waiting answerer", out.get("status") == "connected", str(out))
+run("send", "--as", "questioner", "first question")
+code, out = run("receive", "--as", "answerer")
+check("answerer receives the first question", out.get("message") == "first question", str(out))
+run("hang-up", "--as", "questioner")
+check("dialed marker removed after hang-up", not (TEST_DIR / "questioner.dialed").exists())
+
+# 19. questioner vanished after connecting (no __END__ sent) → answerer hung_up
+reset()
+print("\n19. questioner vanished after connecting → hung_up")
+run("pick-up")
+run("dial")
+(TEST_DIR / "questioner.active").unlink()  # questioner cleaned itself up without a courtesy __END__
+code, out = run("receive", "--as", "answerer")
+check("status hung_up", out.get("status") == "hung_up", str(out))
+check("reason other_side_gone", out.get("reason") == "other_side_gone", str(out))
+
 # ── summary ───────────────────────────────────────────────────────────────────
 
 print(f"\n═══ {passed} passed  {failed} failed ═══\n")
